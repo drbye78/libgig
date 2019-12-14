@@ -6625,7 +6625,9 @@ namespace {
             if (pVersion && pVersion->major > 2) {
                 RIFF::Chunk* _3gnm = _3gnl->GetFirstSubChunk();
                 for (int i = 0 ; i < 128 ; i++) {
-                    if (i >= pGroups->size()) ::SaveString(CHUNK_ID_3GNM, _3gnm, _3gnl, "", "", true, 64);
+                    // create 128 empty placeholder strings which will either
+                    // be filled by Group::UpdateChunks below or left empty.
+                    ::SaveString(CHUNK_ID_3GNM, _3gnm, _3gnl, "", "", true, 64);
                     if (_3gnm) _3gnm = _3gnl->GetNextSubChunk();
                 }
             }
