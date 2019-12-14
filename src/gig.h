@@ -50,6 +50,7 @@
 # define LIST_TYPE_3GNL	0x33676E6C
 # define LIST_TYPE_3LS  0x334c5320 // own gig format extension
 # define LIST_TYPE_RTIS 0x52544953 // own gig format extension
+# define LIST_TYPE_3DNM 0x33646e6d
 # define CHUNK_ID_3GIX	0x33676978
 # define CHUNK_ID_3EWA	0x33657761
 # define CHUNK_ID_3LNK	0x336C6E6B
@@ -62,6 +63,7 @@
 # define CHUNK_ID_LSNM  0x4c534e4d // own gig format extension
 # define CHUNK_ID_SCSL  0x5343534c // own gig format extension
 # define CHUNK_ID_LSDE  0x4c534445 // own gig format extension
+# define CHUNK_ID_3DDP  0x33646470
 #else  // little endian
 # define LIST_TYPE_3PRG	0x67727033
 # define LIST_TYPE_3EWL	0x6C776533
@@ -69,6 +71,7 @@
 # define LIST_TYPE_3GNL	0x6C6E6733
 # define LIST_TYPE_3LS  0x20534c33 // own gig format extension
 # define LIST_TYPE_RTIS 0x53495452 // own gig format extension
+# define LIST_TYPE_3DNM 0x6d6e6433
 # define CHUNK_ID_3GIX	0x78696733
 # define CHUNK_ID_3EWA	0x61776533
 # define CHUNK_ID_3LNK	0x6B6E6C33
@@ -81,6 +84,7 @@
 # define CHUNK_ID_LSNM  0x4d4e534c // own gig format extension
 # define CHUNK_ID_SCSL  0x4c534353 // own gig format extension
 # define CHUNK_ID_LSDE  0x4544534c // own gig format extension
+# define CHUNK_ID_3DDP  0x70646433
 #endif // WORDS_BIGENDIAN
 
 #ifndef GIG_DECLARE_ENUM

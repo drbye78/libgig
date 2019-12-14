@@ -3412,7 +3412,7 @@ namespace {
         }
 
         File* pFile = (File*) GetParent()->GetParent();
-        bool versiongt2 = pFile->pVersion && pFile->pVersion->major > 2;
+        const bool versiongt2 = pFile->pVersion && pFile->pVersion->major > 2;
         const int iMaxDimensions =  versiongt2 ? 8 : 5;
         const int iMaxDimensionRegions = versiongt2 ? 256 : 32;
 
@@ -3458,6 +3458,32 @@ namespace {
                 }
             }
             store32(&pData[iWavePoolOffset + i * 4], iWaveIndex);
+        }
+
+        if (versiongt2) {
+            // add 3dnm list which always seems to be empty
+            RIFF::List* _3dnm = pCkRegion->GetSubList(LIST_TYPE_3DNM);
+            if (!_3dnm) _3dnm = pCkRegion->AddSubList(LIST_TYPE_3DNM);
+
+            // add 3ddp chunk which always seems to have 16 bytes of 0xFF
+            RIFF::Chunk* _3ddp = pCkRegion->GetSubChunk(CHUNK_ID_3DDP);
+            if (!_3ddp) _3ddp =  pCkRegion->AddSubChunk(CHUNK_ID_3DDP, 16);
+            uint8_t* pData = (uint8_t*) _3ddp->LoadChunkData();
+            for (int i = 0; i < 16; i += 4) {
+                store32(&pData[i], 0xFFFFFFFF);
+            }
+
+            // move 3dnm and 3ddp to the end of the region list
+            pCkRegion->MoveSubChunk(pCkRegion->GetSubList(LIST_TYPE_3DNM), (RIFF::Chunk*)NULL);
+            pCkRegion->MoveSubChunk(pCkRegion->GetSubChunk(CHUNK_ID_3DDP), (RIFF::Chunk*)NULL);
+        } else {
+            // this is intended for the user switching from GSt >= 3 version
+            // back to an older format version, delete GSt3 chunks ...
+            RIFF::List* _3dnm = pCkRegion->GetSubList(LIST_TYPE_3DNM);
+            if (_3dnm) pCkRegion->DeleteSubChunk(_3dnm);
+
+            RIFF::Chunk* _3ddp = pCkRegion->GetSubChunk(CHUNK_ID_3DDP);
+            if (_3ddp) pCkRegion->DeleteSubChunk(_3ddp);
         }
     }
 
