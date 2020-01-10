@@ -15,8 +15,11 @@ Version SVN trunk (?)
     - GIG FORMAT EXTENSION: Added attribute DimensionRegion::LFO3FlipPhase
       (the original Gigasampler/GigaStudio software only had that flip phase
       option for LFO1 and LFO2).
-    - Added method DimensionRegion::UsesAnyGigFormatExtension() (however only as
-      private method yet, see comments on method why).
+    - Added methods DimensionRegion::UsesAnyGigFormatExtension(),
+      Region::UsesAnyGigFormatExtension(),
+      Instrument::UsesAnyGigFormatExtension() and
+      File::UsesAnyGigFormatExtension() (however only as private methods yet,
+      see comments on methods why).
     - GIG FORMAT EXTENSION: added LinuxSampler specific filter type
       implementations to enum vcf_type_t: vcf_type_lowpass_1p,
       vcf_type_lowpass_2p, vcf_type_lowpass_4p, vcf_type_lowpass_6p,

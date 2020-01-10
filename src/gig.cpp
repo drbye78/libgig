@@ -2,7 +2,7 @@
  *                                                                         *
  *   libgig - C++ cross-platform Gigasampler format file access library    *
  *                                                                         *
- *   Copyright (C) 2003-2019 by Christian Schoenebeck                      *
+ *   Copyright (C) 2003-2020 by Christian Schoenebeck                      *
  *                              <cuse@users.sourceforge.net>               *
  *                                                                         *
  *   This library is free software; you can redistribute it and/or modify  *
@@ -3460,7 +3460,14 @@ namespace {
             store32(&pData[iWavePoolOffset + i * 4], iWaveIndex);
         }
 
-        if (versiongt2) {
+        // The following chunks are just added for compatibility with the
+        // GigaStudio software, which would show a warning if these were
+        // missing. However currently these chunks don't cover any useful
+        // data. So if this gig file uses any of our own gig format
+        // extensions which would cause this gig file to be unloadable
+        // with GSt software anyway, then just skip these GSt compatibility
+        // chunks here as well.
+        if (versiongt2 && !UsesAnyGigFormatExtension()) {
             // add 3dnm list which always seems to be empty
             RIFF::List* _3dnm = pCkRegion->GetSubList(LIST_TYPE_3DNM);
             if (!_3dnm) _3dnm = pCkRegion->AddSubList(LIST_TYPE_3DNM);
@@ -4361,6 +4368,29 @@ namespace {
             }
         }
         Layers = orig->Layers;
+    }
+
+    /**
+     * Returns @c true in case this Region object uses any gig format
+     * extension, that is e.g. whether any DimensionRegion object currently
+     * has any setting effective that would require our "LSDE" RIFF chunk to
+     * be stored to the gig file.
+     *
+     * Right now this is a private method. It is considerable though this method
+     * to become (in slightly modified form) a public API method in future, i.e.
+     * to allow instrument editors to visualize and/or warn the user of any gig
+     * format extension being used. See also comments on
+     * DimensionRegion::UsesAnyGigFormatExtension() for details about such a
+     * potential public API change in future.
+     */
+    bool Region::UsesAnyGigFormatExtension() const {
+        for (int i = 0; i < 256; i++) {
+            if (pDimensionRegions[i]) {
+                if (pDimensionRegions[i]->UsesAnyGigFormatExtension())
+                    return true;
+            }
+        }
+        return false;
     }
 
 
@@ -5531,6 +5561,31 @@ namespace {
         }
 
         UpdateRegionKeyTable();
+    }
+
+    /**
+     * Returns @c true in case this Instrument object uses any gig format
+     * extension, that is e.g. whether any DimensionRegion object currently
+     * has any setting effective that would require our "LSDE" RIFF chunk to
+     * be stored to the gig file.
+     *
+     * Right now this is a private method. It is considerable though this method
+     * to become (in slightly modified form) a public API method in future, i.e.
+     * to allow instrument editors to visualize and/or warn the user of any gig
+     * format extension being used. See also comments on
+     * DimensionRegion::UsesAnyGigFormatExtension() for details about such a
+     * potential public API change in future.
+     */
+    bool Instrument::UsesAnyGigFormatExtension() const {
+        if (!pRegions) return false;
+        RegionList::const_iterator iter = pRegions->begin();
+        RegionList::const_iterator end  = pRegions->end();
+        for (; iter != end; ++iter) {
+            gig::Region* rgn = static_cast<gig::Region*>(*iter);
+            if (rgn->UsesAnyGigFormatExtension())
+                return true;
+        }
+        return false;
     }
 
 
@@ -6863,6 +6918,30 @@ namespace {
         return bAutoLoad;
     }
 
+    /**
+     * Returns @c true in case this gig File object uses any gig format
+     * extension, that is e.g. whether any DimensionRegion object currently
+     * has any setting effective that would require our "LSDE" RIFF chunk to
+     * be stored to the gig file.
+     *
+     * Right now this is a private method. It is considerable though this method
+     * to become (in slightly modified form) a public API method in future, i.e.
+     * to allow instrument editors to visualize and/or warn the user of any gig
+     * format extension being used. See also comments on
+     * DimensionRegion::UsesAnyGigFormatExtension() for details about such a
+     * potential public API change in future.
+     */
+    bool File::UsesAnyGigFormatExtension() const {
+        if (!pInstruments) return false;
+        InstrumentList::iterator iter = pInstruments->begin();
+        InstrumentList::iterator end  = pInstruments->end();
+        for (; iter != end; ++iter) {
+            Instrument* pInstrument = static_cast<gig::Instrument*>(*iter);
+            if (pInstrument->UsesAnyGigFormatExtension())
+                return true;
+        }
+        return false;
+    }
 
 
 // *************** Exception ***************

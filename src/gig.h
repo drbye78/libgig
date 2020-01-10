@@ -2,7 +2,7 @@
  *                                                                         *
  *   libgig - C++ cross-platform Gigasampler format file access library    *
  *                                                                         *
- *   Copyright (C) 2003-2019 by Christian Schoenebeck                      *
+ *   Copyright (C) 2003-2020 by Christian Schoenebeck                      *
  *                              <cuse@users.sourceforge.net>               *
  *                                                                         *
  *   This library is free software; you can redistribute it and/or modify  *
@@ -953,6 +953,8 @@ namespace gig {
             DimensionRegion* GetDimensionRegionByBit(const std::map<dimension_t,int>& DimCase);
            ~Region();
             friend class Instrument;
+        private:
+            bool UsesAnyGigFormatExtension() const;
     };
 
     /** @brief Abstract base class for all MIDI rules.
@@ -1326,6 +1328,8 @@ namespace gig {
             MidiRule** pMidiRules;
             std::vector<_ScriptPooolEntry> scriptPoolFileOffsets;
             std::vector<_ScriptPooolRef>* pScriptRefs;
+
+            bool UsesAnyGigFormatExtension() const;
     };
 
     /** @brief Group of Gigasampler samples
@@ -1472,6 +1476,8 @@ namespace gig {
             std::list<Group*>::iterator GroupsIterator;
             bool                        bAutoLoad;
             std::list<ScriptGroup*>*    pScriptGroups;
+
+            bool UsesAnyGigFormatExtension() const;
     };
 
     /**
