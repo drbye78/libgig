@@ -26,6 +26,8 @@ Version SVN trunk (?)
       (patch by Ivan Maguidhir).
     - Compatibility fix: GigaStudio 3 expects '3dnm' and '3ddp' RIFF chunks
       (original patch by Ivan Maguidhir).
+    - Region::DeleteDimensionZone(): Fixed dimensions being in different order
+      after deleting a dimension zone.
 
   * src/tools/gigdump.cpp:
     - Print dimension region properties LFO1WaveForm, LFO2WaveForm,

@@ -4023,9 +4023,23 @@ namespace {
         // now tempRegion's dimensions and DimensionRegions basically reflect
         // what we wanted to get for this actual Region here, so we now just
         // delete and recreate the dimension in question with the new amount
-        // zones and then copy back from tempRegion       
-        DeleteDimension(oldDef);
-        AddDimension(&newDef);
+        // zones and then copy back from tempRegion. we're actually deleting and
+        // recreating all dimensions here, to avoid altering the precise order
+        // of the dimensions (which would not be an error per so, but it would
+        // cause usability issues with instrument editors)
+        {
+            std::vector<dimension_def_t> oldDefs;
+            for (int i = 0; i < Dimensions; ++i)
+                oldDefs.push_back(pDimensionDefinitions[i]); // copy, don't reference
+            for (int i = Dimensions - 1; i >= 0; --i)
+                DeleteDimension(&pDimensionDefinitions[i]);
+            for (int i = 0; i < oldDefs.size(); ++i) {
+                dimension_def_t& def = oldDefs[i];
+                AddDimension(
+                    (def.dimension == newDef.dimension) ? &newDef : &def
+                );
+            }
+        }
         for (int iSrc = 0; iSrc < 256; ++iSrc) {
             DimensionRegion* srcDimRgn = tempRgn->pDimensionRegions[iSrc];
             if (!srcDimRgn) continue;
