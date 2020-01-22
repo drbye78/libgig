@@ -4588,7 +4588,7 @@ namespace {
             Compression = (Compression_t) ckScri->ReadUint32();
             Encoding    = (Encoding_t) ckScri->ReadUint32();
             Language    = (Language_t) ckScri->ReadUint32();
-            Bypass      = (Language_t) ckScri->ReadUint32() & 1;
+            Bypass      = ckScri->ReadUint32() & 1;
             crc         = ckScri->ReadUint32();
             uint32_t nameSize = ckScri->ReadUint32();
             Name.resize(nameSize, ' ');
