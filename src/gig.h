@@ -1190,6 +1190,7 @@ namespace gig {
             Encoding_t     Encoding;    ///< Format the script's source code text is encoded with.
             Language_t     Language;    ///< Programming language and dialect the script is written in.
             bool           Bypass;      ///< Global bypass: if enabled, this script shall not be executed by the sampler for any instrument.
+            uint8_t        Uuid[16];    ///< Persistent Universally Unique Identifier of this script, which remains identical after any changes to this script.
 
             String GetScriptAsText();
             void   SetScriptAsText(const String& text);
@@ -1202,6 +1203,7 @@ namespace gig {
             void UpdateChunks(progress_t* pProgress) OVERRIDE;
             void DeleteChunks() OVERRIDE;
             void RemoveAllScriptReferences();
+            void GenerateUuid();
             friend class ScriptGroup;
             friend class Instrument;
         private:

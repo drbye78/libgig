@@ -2,6 +2,7 @@ Version SVN trunk (?)
 
   * general changes:
     - Require at least a C++11 compliant compiler.
+    - Require some UUID generating function by underlying system.
 
   * src/gig.cpp, src/gig.h:
     - GIG FORMAT EXTENSION: Added attributes DimensionRegion::LFO1WaveForm,
@@ -31,6 +32,7 @@ Version SVN trunk (?)
       (original patch by Ivan Maguidhir).
     - Region::DeleteDimensionZone() and Region::SplitDimensionZone(): Fixed
       dimensions being in different order after deleting a dimension zone.
+    - Script: Generate a persistent UUID for each script.
 
   * src/tools/gigdump.cpp:
     - Print dimension region properties LFO1WaveForm, LFO2WaveForm,

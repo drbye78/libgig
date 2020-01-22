@@ -2,7 +2,7 @@
  *                                                                         *
  *   libgig - C++ cross-platform Gigasampler format file access library    *
  *                                                                         *
- *   Copyright (C) 2003-2019 by Christian Schoenebeck                      *
+ *   Copyright (C) 2003-2020 by Christian Schoenebeck                      *
  *                              <cuse@users.sourceforge.net>               *
  *                                                                         *
  *   This library is free software; you can redistribute it and/or modify  *
@@ -556,7 +556,6 @@ namespace DLS {
     }
 
     void Resource::GenerateDLSID(dlsid_t* pDLSID) {
-#if defined(WIN32) || defined(__APPLE__) || defined(HAVE_UUID_GENERATE)
 #ifdef WIN32
         UUID uuid;
         UuidCreate(&uuid);
@@ -581,14 +580,15 @@ namespace DLS {
         pDLSID->abData[5] = uuid.byte13;
         pDLSID->abData[6] = uuid.byte14;
         pDLSID->abData[7] = uuid.byte15;
-#else
+#elif defined(HAVE_UUID_GENERATE)
         uuid_t uuid;
         uuid_generate(uuid);
         pDLSID->ulData1 = uuid[0] | uuid[1] << 8 | uuid[2] << 16 | uuid[3] << 24;
         pDLSID->usData2 = uuid[4] | uuid[5] << 8;
         pDLSID->usData3 = uuid[6] | uuid[7] << 8;
         memcpy(pDLSID->abData, &uuid[8], 8);
-#endif
+#else
+# error "Missing support for uuid generation"
 #endif
     }
     

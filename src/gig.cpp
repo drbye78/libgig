@@ -4594,6 +4594,14 @@ namespace {
             Name.resize(nameSize, ' ');
             for (int i = 0; i < nameSize; ++i)
                 Name[i] = ckScri->ReadUint8();
+            // check if an uuid was already stored along with this script
+            if (headerSize >= 6*sizeof(int32_t) + nameSize + 16) { // yes ...
+                for (uint i = 0; i < 16; ++i) {
+                    Uuid[i] = ckScri->ReadUint8();
+                }
+            } else { // no uuid yet, generate one now ...
+                GenerateUuid();
+            }
             // to handle potential future extensions of the header
             ckScri->SetPos(sizeof(int32_t) + headerSize);
             // read actual script data
@@ -4608,6 +4616,7 @@ namespace {
             Bypass   = false;
             crc      = 0;
             Name     = "Unnamed Script";
+            GenerateUuid();
         }
     }
 
@@ -4662,13 +4671,14 @@ namespace {
         __calculateCRC(&data[0], data.size(), crc);
         __finalizeCRC(crc);
         // make sure chunk exists and has the required size
-        const file_offset_t chunkSize = (file_offset_t) 7*sizeof(int32_t) + Name.size() + data.size();
+        const file_offset_t chunkSize =
+            (file_offset_t) 7*sizeof(int32_t) + Name.size() + 16 + data.size();
         if (!pChunk) pChunk = pGroup->pList->AddSubChunk(CHUNK_ID_SCRI, chunkSize);
         else pChunk->Resize(chunkSize);
         // fill the chunk data to be written to disk
         uint8_t* pData = (uint8_t*) pChunk->LoadChunkData();
         int pos = 0;
-        store32(&pData[pos], uint32_t(6*sizeof(int32_t) + Name.size())); // total header size
+        store32(&pData[pos], uint32_t(6*sizeof(int32_t) + Name.size() + 16)); // total header size
         pos += sizeof(int32_t);
         store32(&pData[pos], Compression);
         pos += sizeof(int32_t);
@@ -4684,8 +4694,34 @@ namespace {
         pos += sizeof(int32_t);
         for (int i = 0; i < Name.size(); ++i, ++pos)
             pData[pos] = Name[i];
+        for (int i = 0; i < 16; ++i, ++pos)
+            pData[pos] = Uuid[i];
         for (int i = 0; i < data.size(); ++i, ++pos)
             pData[pos] = data[i];
+    }
+
+    /**
+     * Generate a new Universally Unique Identifier (UUID) for this script.
+     */
+    void Script::GenerateUuid() {
+        DLS::dlsid_t dlsid;
+        DLS::Resource::GenerateDLSID(&dlsid);
+        Uuid[0]  = dlsid.ulData1       & 0xff;
+        Uuid[1]  = dlsid.ulData1 >>  8 & 0xff;
+        Uuid[2]  = dlsid.ulData1 >> 16 & 0xff;
+        Uuid[3]  = dlsid.ulData1 >> 24 & 0xff;
+        Uuid[4]  = dlsid.usData2       & 0xff;
+        Uuid[5]  = dlsid.usData2 >>  8 & 0xff;
+        Uuid[6]  = dlsid.usData3       & 0xff;
+        Uuid[7]  = dlsid.usData3 >>  8 & 0xff;
+        Uuid[8]  = dlsid.abData[0];
+        Uuid[9]  = dlsid.abData[1];
+        Uuid[10] = dlsid.abData[2];
+        Uuid[11] = dlsid.abData[3];
+        Uuid[12] = dlsid.abData[4];
+        Uuid[13] = dlsid.abData[5];
+        Uuid[14] = dlsid.abData[6];
+        Uuid[15] = dlsid.abData[7];
     }
 
     /**
