@@ -5696,6 +5696,10 @@ namespace {
      * still being able to fine tune certain aspects of the script for each
      * instrument individually.
      *
+     * @note This is an own format extension which did not exist i.e. in the
+     * GigaStudio 4 software. It will currently only work with LinuxSampler and
+     * Gigedit.
+     *
      * @param slot - script slot index of the variable to be retrieved
      * @param variable - name of the 'patch' variable in that script
      */
@@ -5727,6 +5731,10 @@ namespace {
      * still being able to fine tune certain aspects of the script for each
      * instrument individually.
      *
+     * @note This is an own format extension which did not exist i.e. in the
+     * GigaStudio 4 software. It will currently only work with LinuxSampler and
+     * Gigedit.
+     *
      * @param slot - script slot index of the variable to be retrieved
      */
     std::map<String,String> Instrument::GetScriptPatchVariables(int slot) {
@@ -5754,6 +5762,10 @@ namespace {
      * still being able to fine tune certain aspects of the script for each
      * instrument individually.
      *
+     * @note This is an own format extension which did not exist i.e. in the
+     * GigaStudio 4 software. It will currently only work with LinuxSampler and
+     * Gigedit.
+     *
      * @param slot - script slot index of the variable to be retrieved
      * @param variable - name of the 'patch' variable in that script
      */
@@ -5773,6 +5785,10 @@ namespace {
      * instrument basis. That allows to share scripts between instruments while
      * still being able to fine tune certain aspects of the script for each
      * instrument individually.
+     *
+     * @note This is an own format extension which did not exist i.e. in the
+     * GigaStudio 4 software. It will currently only work with LinuxSampler and
+     * Gigedit.
      *
      * @param slot - script slot index of the variable to be set
      * @param variable - name of the 'patch' variable in that script
@@ -5813,6 +5829,10 @@ namespace {
      * instrument basis. That allows to share scripts between instruments while
      * still being able to fine tune certain aspects of the script for each
      * instrument individually.
+     *
+     * @note This is an own format extension which did not exist i.e. in the
+     * GigaStudio 4 software. It will currently only work with LinuxSampler and
+     * Gigedit.
      *
      * @param slot - script slot index of the variable to be unset
      * @param variable - name of the 'patch' variable in that script
