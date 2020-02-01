@@ -2,7 +2,7 @@
  *                                                                         *
  *   libgig - C++ cross-platform Gigasampler format file access library    *
  *                                                                         *
- *   Copyright (C) 2003-2019 by Christian Schoenebeck                      *
+ *   Copyright (C) 2003-2020 by Christian Schoenebeck                      *
  *                              <cuse@users.sourceforge.net>               *
  *                                                                         *
  *   This library is free software; you can redistribute it and/or modify  *
@@ -147,6 +147,23 @@ inline void store32(uint8_t* pData, uint32_t data) {
     pData[1] = data >> 8;
     pData[2] = data >> 16;
     pData[3] = data >> 24;
+}
+
+/**
+ * Stores a 64 bit integer in memory using little-endian format.
+ *
+ * @param pData - memory pointer
+ * @param data  - integer to be stored
+ */
+inline void store64(uint8_t* pData, uint64_t data) {
+    pData[0] = data;
+    pData[1] = data >> 8;
+    pData[2] = data >> 16;
+    pData[3] = data >> 24;
+    pData[4] = data >> 32;
+    pData[5] = data >> 40;
+    pData[6] = data >> 48;
+    pData[7] = data >> 56;
 }
 
 /**
@@ -415,6 +432,17 @@ inline std::string concatPath(const std::string path1, const std::string path2) 
             !path2.empty() && *(path2.begin())  != NATIVE_PATH_SEPARATOR)
         ? path1 + NATIVE_PATH_SEPARATOR + path2
         : path1 + path2;
+}
+
+/**
+ * Returns a hex string representation of the binary data being passed.
+ */
+inline std::string binToHexStr(const void* pData, size_t sz) {
+    std::string s;
+    for (size_t i = 0; i < sz; ++i) {
+        s += strPrint("%02x", ((const char*)pData)[i]);
+    }
+    return s;
 }
 
 #endif // __LIBGIG_HELPER_H__
