@@ -33,6 +33,12 @@ Version SVN trunk (?)
     - Region::DeleteDimensionZone() and Region::SplitDimensionZone(): Fixed
       dimensions being in different order after deleting a dimension zone.
     - Script: Generate a persistent UUID for each script.
+    - GIG FORMAT EXTENSION: Added support for script 'patch' variables and
+      accordingly added new methods to Instrument class:
+      IsScriptPatchVariableSet(), GetScriptPatchVariables(),
+      GetScriptPatchVariable(), SetScriptPatchVariable(),
+      UnsetScriptPatchVariable(); stored persistently as new 'SCPV' RIFF chunk
+      as child of our '3LS ' list chunk on Instrument level.
 
   * src/tools/gigdump.cpp:
     - Print dimension region properties LFO1WaveForm, LFO2WaveForm,

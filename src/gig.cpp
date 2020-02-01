@@ -4994,6 +4994,7 @@ namespace {
         // own gig format extensions
         RIFF::List* lst3LS = insList->GetSubList(LIST_TYPE_3LS);
         if (lst3LS) {
+            // script slots (that is references to instrument scripts)
             RIFF::Chunk* ckSCSL = lst3LS->GetSubChunk(CHUNK_ID_SCSL);
             if (ckSCSL) {
                 ckSCSL->SetPos(0);
@@ -5010,6 +5011,44 @@ namespace {
                         e.bypass     = ckSCSL->ReadUint32() & 1;
                         if (unknownSpace) ckSCSL->SetPos(unknownSpace, RIFF::stream_curpos); // in case of future extensions
                         scriptPoolFileOffsets.push_back(e);
+                    }
+                }
+            }
+
+            // overridden script 'patch' variables
+            RIFF::Chunk* ckSCPV = lst3LS->GetSubChunk(CHUNK_ID_SCPV);
+            if (ckSCPV) {
+                ckSCPV->SetPos(0);
+
+                int nScripts = ckSCPV->ReadUint32();
+                for (int iScript = 0; iScript < nScripts; ++iScript) {
+                    _UUID uuid;
+                    for (int i = 0; i < 16; ++i)
+                        uuid[i] = ckSCPV->ReadUint8();
+                    uint slot = ckSCPV->ReadUint32();
+                    ckSCPV->ReadUint32(); // unused, reserved 32 bit
+                    int nVars = ckSCPV->ReadUint32();
+                    for (int iVar = 0; iVar < nVars; ++iVar) {
+                        uint8_t type = ckSCPV->ReadUint8();
+                        ckSCPV->ReadUint8();  // unused, reserved byte
+                        int blobSize = ckSCPV->ReadUint16();
+                        RIFF::file_offset_t pos = ckSCPV->GetPos();
+                        // assuming 1st bit is set in 'type', otherwise blob not
+                        // supported for decoding
+                        if (type & 1) {
+                            String name, value;
+                            int len = ckSCPV->ReadUint16();
+                            for (int i = 0; i < len; ++i)
+                                name += (char) ckSCPV->ReadUint8();
+                            len = ckSCPV->ReadUint16();
+                            for (int i = 0; i < len; ++i)
+                                value += (char) ckSCPV->ReadUint8();
+                            if (!name.empty()) // 'name' should never be empty, but just to be sure
+                                scriptVars[uuid][slot][name] = value;
+                        }
+                        // also for potential future extensions: seek forward
+                        // according to blob size
+                        ckSCPV->SetPos(pos + blobSize);
                     }
                 }
             }
@@ -5104,6 +5143,8 @@ namespace {
 
            RIFF::List* lst3LS = pCkInstrument->GetSubList(LIST_TYPE_3LS);
            if (!lst3LS) lst3LS = pCkInstrument->AddSubList(LIST_TYPE_3LS);
+
+           // save script slots (that is references to instrument scripts)
            const int slotCount = (int) pScriptRefs->size();
            const int headerSize = 3 * sizeof(uint32_t);
            const int slotSize  = 2 * sizeof(uint32_t);
@@ -5127,6 +5168,78 @@ namespace {
                pos += sizeof(uint32_t);
                store32(&pData[pos], (*pScriptRefs)[i].bypass ? 1 : 0);
                pos += sizeof(uint32_t);
+           }
+
+           // save overridden script 'patch' variables ...
+
+           // the actual 'scriptVars' member variable might contain variables of
+           // scripts which are currently no longer assigned to any script slot
+           // of this instrument, we need to get rid of these variables here to
+           // prevent saving those persistently, however instead of touching the
+           // member variable 'scriptVars' directly, rather strip a separate
+           // copy such that the overridden values are not lost during an
+           // instrument editor session (i.e. if script might be re-assigned)
+           _VarsByScript vars = stripScriptVars();
+           if (!vars.empty()) {
+               // determine total size required for 'SCPV' RIFF chunk, and the
+               // total amount of scripts being overridden (the latter is
+               // required because a script might be used on several script
+               // slots, hence vars.size() could then not be used here instead)
+               size_t totalChunkSize = 4;
+               size_t totalScriptsOverridden = 0;
+               for (const auto& script : vars) {
+                   for (const auto& slot : script.second) {
+                       totalScriptsOverridden++;
+                       totalChunkSize += 16 + 4 + 4 + 4;
+                       for (const auto& var : slot.second) {
+                           totalChunkSize += 4 + 2 + var.first.length() +
+                                                 2 + var.second.length();
+                       }
+                   }
+               }
+
+               // ensure 'SCPV' RIFF chunk exists (with required size)
+               RIFF::Chunk* ckSCPV = lst3LS->GetSubChunk(CHUNK_ID_SCPV);
+               if (!ckSCPV) ckSCPV = lst3LS->AddSubChunk(CHUNK_ID_SCPV, totalChunkSize);
+               else ckSCPV->Resize(totalChunkSize);
+
+               // store the actual data to 'SCPV' RIFF chunk
+               uint8_t* pData = (uint8_t*) ckSCPV->LoadChunkData();
+               int pos = 0;
+               store32(&pData[pos], (uint32_t) totalScriptsOverridden); // scripts count
+               pos += 4;
+               for (const auto& script : vars) {
+                   for (const auto& slot : script.second) {
+                       for (int i = 0; i < 16; ++i)
+                           pData[pos+i] = script.first[i]; // uuid
+                       pos += 16;
+                       store32(&pData[pos], (uint32_t) slot.first); // slot index
+                       pos += 4;
+                       store32(&pData[pos], (uint32_t) 0); // unused, reserved 32 bit
+                       pos += 4;
+                       store32(&pData[pos], (uint32_t) slot.second.size()); // variables count
+                       pos += 4;
+                       for (const auto& var : slot.second) {
+                           pData[pos++] = 1; // type
+                           pData[pos++] = 0; // reserved byte
+                           store16(&pData[pos], 2 + var.first.size() + 2 + var.second.size()); // blob size
+                           pos += 2;
+                           store16(&pData[pos], var.first.size()); // variable name length
+                           pos += 2;
+                           for (int i = 0; i < var.first.size(); ++i)
+                               pData[pos++] = var.first[i];
+                           store16(&pData[pos], var.second.size()); // variable value length
+                           pos += 2;
+                           for (int i = 0; i < var.second.size(); ++i)
+                               pData[pos++] = var.second[i];
+                       }
+                   }
+               }
+           } else {
+               // no script variable overridden by this instrument, so get rid
+               // of 'SCPV' RIFF chunk (if any)
+               RIFF::Chunk* ckSCPV = lst3LS->GetSubChunk(CHUNK_ID_SCPV);
+               if (ckSCPV) lst3LS->DeleteSubChunk(ckSCPV);
            }
        } else {
            // no script slots, so get rid of any LS custom RIFF chunks (if any)
@@ -5552,6 +5665,245 @@ namespace {
             scriptPoolFileOffsets.at(index).bypass = bBypass;
     }
 
+    /// type cast (by copy) uint8_t[16] -> std::array<uint8_t,16>
+    inline std::array<uint8_t,16> _UUIDFromCArray(const uint8_t* pData) {
+        std::array<uint8_t,16> uuid;
+        memcpy(&uuid[0], pData, 16);
+        return uuid;
+    }
+
+    /**
+     * Returns true if this @c Instrument has any script slot which references
+     * the @c Script identified by passed @p uuid.
+     */
+    bool Instrument::ReferencesScriptWithUuid(const _UUID& uuid) {
+        const uint nSlots = ScriptSlotCount();
+        for (uint iSlot = 0; iSlot < nSlots; ++iSlot)
+            if (_UUIDFromCArray(&GetScriptOfSlot(iSlot)->Uuid[0]) == uuid)
+                return true;
+        return false;
+    }
+
+    /** @brief Checks whether a certain script 'patch' variable value is set.
+     *
+     * Returns @c true if the initial value for the requested script variable is
+     * currently overridden by this instrument.
+     *
+     * @remarks Real-time instrument scripts allow to declare special 'patch'
+     * variables, which essentially behave like regular variables of their data
+     * type, however their initial value may optionally be overridden on a per
+     * instrument basis. That allows to share scripts between instruments while
+     * still being able to fine tune certain aspects of the script for each
+     * instrument individually.
+     *
+     * @param slot - script slot index of the variable to be retrieved
+     * @param variable - name of the 'patch' variable in that script
+     */
+    bool Instrument::IsScriptPatchVariableSet(int slot, String variable) {
+        if (variable.empty()) return false;
+        Script* script = GetScriptOfSlot(slot);
+        if (!script) return false;
+        const _UUID uuid = _UUIDFromCArray(&script->Uuid[0]);
+        if (!scriptVars.count(uuid)) return false;
+        const _VarsBySlot& slots = scriptVars.find(uuid)->second;
+        if (slots.empty()) return false;
+        if (slots.count(slot))
+            return slots.find(slot)->second.count(variable);
+        else
+            return slots.begin()->second.count(variable);
+    }
+
+    /** @brief Get all overridden script 'patch' variables.
+     *
+     * Returns map of key-value pairs reflecting all patch variables currently
+     * being overridden by this instrument for the given script @p slot, where
+     * key is the variable name and value is the hereby currently overridden
+     * value for that variable.
+     *
+     * @remarks Real-time instrument scripts allow to declare special 'patch'
+     * variables, which essentially behave like regular variables of their data
+     * type, however their initial value may optionally be overridden on a per
+     * instrument basis. That allows to share scripts between instruments while
+     * still being able to fine tune certain aspects of the script for each
+     * instrument individually.
+     *
+     * @param slot - script slot index of the variable to be retrieved
+     */
+    std::map<String,String> Instrument::GetScriptPatchVariables(int slot) {
+        Script* script = GetScriptOfSlot(slot);
+        if (!script) return std::map<String,String>();
+        const _UUID uuid = _UUIDFromCArray(&script->Uuid[0]);
+        if (!scriptVars.count(uuid)) return std::map<String,String>();
+        const _VarsBySlot& slots = scriptVars.find(uuid)->second;
+        if (slots.empty()) return std::map<String,String>();
+        const _PatchVars& vars =
+            (slots.count(slot)) ?
+                slots.find(slot)->second : slots.begin()->second;
+        return vars;
+    }
+
+    /** @brief Get overridden initial value for 'patch' variable.
+     *
+     * Returns current initial value for the requested script variable being
+     * overridden by this instrument.
+     *
+     * @remarks Real-time instrument scripts allow to declare special 'patch'
+     * variables, which essentially behave like regular variables of their data
+     * type, however their initial value may optionally be overridden on a per
+     * instrument basis. That allows to share scripts between instruments while
+     * still being able to fine tune certain aspects of the script for each
+     * instrument individually.
+     *
+     * @param slot - script slot index of the variable to be retrieved
+     * @param variable - name of the 'patch' variable in that script
+     */
+    String Instrument::GetScriptPatchVariable(int slot, String variable) {
+        std::map<String,String> vars = GetScriptPatchVariables(slot);
+        return (vars.count(variable)) ? vars.find(variable)->second : "";
+    }
+
+    /** @brief Override initial value for 'patch' variable.
+     *
+     * Overrides initial value for the requested script variable for this
+     * instrument with the passed value.
+     *
+     * @remarks Real-time instrument scripts allow to declare special 'patch'
+     * variables, which essentially behave like regular variables of their data
+     * type, however their initial value may optionally be overridden on a per
+     * instrument basis. That allows to share scripts between instruments while
+     * still being able to fine tune certain aspects of the script for each
+     * instrument individually.
+     *
+     * @param slot - script slot index of the variable to be set
+     * @param variable - name of the 'patch' variable in that script
+     * @param value - overridden initial value for that script variable
+     * @throws gig::Exception if given script @p slot index is invalid or given
+     *         @p variable name is empty
+     */
+    void Instrument::SetScriptPatchVariable(int slot, String variable, String value) {
+        if (variable.empty())
+            throw Exception("Variable name must not be empty");
+        Script* script = GetScriptOfSlot(slot);
+        if (!script)
+            throw Exception("No script slot with index " + ToString(slot));
+        const _UUID uuid = _UUIDFromCArray(&script->Uuid[0]);
+        scriptVars[uuid][slot][variable] = value;
+    }
+
+    /** @brief Drop overridden initial value(s) for 'patch' variable(s).
+     *
+     * Reverts initial value(s) for requested script variable(s) back to their
+     * default initial value(s) defined in the script itself.
+     *
+     * Both arguments of this method are optional. The most obvious use case of
+     * this method would be passing a valid script @p slot index and a
+     * (non-emtpy string as) @p variable name to this method, which would cause
+     * that single variable to be unset for that specific script slot (on this
+     * @c Instrument level).
+     *
+     * Not passing a value (or @c -1 for @p slot and/or empty string for
+     * @p variable) means 'wildcard'. So accordingly absence of argument(s) will
+     * cause all variables and/or for all script slots being unset. Hence this
+     * method serves 2^2 = 4 possible use cases in total and accordingly covers
+     * 4 different behaviours in one method.
+     *
+     * @remarks Real-time instrument scripts allow to declare special 'patch'
+     * variables, which essentially behave like regular variables of their data
+     * type, however their initial value may optionally be overridden on a per
+     * instrument basis. That allows to share scripts between instruments while
+     * still being able to fine tune certain aspects of the script for each
+     * instrument individually.
+     *
+     * @param slot - script slot index of the variable to be unset
+     * @param variable - name of the 'patch' variable in that script
+     */
+    void Instrument::UnsetScriptPatchVariable(int slot, String variable) {
+        Script* script = GetScriptOfSlot(slot);
+
+        // option 1: unset a particular variable of one particular script slot
+        if (slot != -1 && !variable.empty()) {
+            if (!script) return;
+            const _UUID uuid = _UUIDFromCArray(&script->Uuid[0]);
+            if (!scriptVars.count(uuid)) return;
+            if (!scriptVars[uuid].count(slot)) return;
+            if (scriptVars[uuid][slot].count(variable))
+                scriptVars[uuid][slot].erase(
+                    scriptVars[uuid][slot].find(variable)
+                );
+            if (scriptVars[uuid][slot].empty())
+                scriptVars[uuid].erase( scriptVars[uuid].find(slot) );
+            if (scriptVars[uuid].empty())
+                scriptVars.erase( scriptVars.find(uuid) );
+            return;
+        }
+
+        // option 2: unset all variables of all script slots
+        if (slot == -1 && variable.empty()) {
+            scriptVars.clear();
+            return;
+        }
+
+        // option 3: unset all variables of one particular script slot only
+        if (slot != -1) {
+            if (!script) return;
+            const _UUID uuid = _UUIDFromCArray(&script->Uuid[0]);
+            if (scriptVars.count(uuid))
+                scriptVars.erase( scriptVars.find(uuid) );
+            return;
+        }
+
+        // option 4: unset a particular variable of all script slots
+        _VarsByScript::iterator itScript = scriptVars.begin();
+        _VarsByScript::iterator endScript = scriptVars.end();
+        while (itScript != endScript) {
+            _VarsBySlot& slots = itScript->second;
+            _VarsBySlot::iterator itSlot = slots.begin();
+            _VarsBySlot::iterator endSlot = slots.end();
+            while (itSlot != endSlot) {
+                _PatchVars& vars = itSlot->second;
+                if (vars.count(variable))
+                    vars.erase( vars.find(variable) );
+                if (vars.empty())
+                    slots.erase(itSlot++); // postfix increment to avoid iterator invalidation
+                else
+                    ++itSlot;
+            }
+            if (slots.empty())
+                scriptVars.erase(itScript++); // postfix increment to avoid iterator invalidation
+            else
+                ++itScript;
+        }
+    }
+
+    /**
+     * Returns stripped version of member variable @c scriptVars, where scripts
+     * no longer referenced by this @c Instrument are filtered out, and so are
+     * variables of meanwhile obsolete slots (i.e. a script still being
+     * referenced, but previously overridden on a script slot which either no
+     * longer exists or is hosting another script now).
+     */
+    Instrument::_VarsByScript Instrument::stripScriptVars() {
+        _VarsByScript vars;
+        _VarsByScript::const_iterator itScript = scriptVars.begin();
+        _VarsByScript::const_iterator endScript = scriptVars.end();
+        for (; itScript != endScript; ++itScript) {
+            const _UUID& uuid = itScript->first;
+            if (!ReferencesScriptWithUuid(uuid))
+                continue;
+            const _VarsBySlot& slots = itScript->second;
+            _VarsBySlot::const_iterator itSlot = slots.begin();
+            _VarsBySlot::const_iterator endSlot = slots.end();
+            for (; itSlot != endSlot; ++itSlot) {
+                Script* script = GetScriptOfSlot(itSlot->first);
+                if (!script) continue;
+                if (_UUIDFromCArray(&script->Uuid[0]) != uuid) continue;
+                if (itSlot->second.empty()) continue;
+                vars[uuid][itSlot->first] = itSlot->second;
+            }
+        }
+        return vars;
+    }
+
     /**
      * Make a (semi) deep copy of the Instrument object given by @a orig
      * and assign it to this object.
@@ -5587,6 +5939,7 @@ namespace {
         DimensionKeyRange = orig->DimensionKeyRange;
         scriptPoolFileOffsets = orig->scriptPoolFileOffsets;
         pScriptRefs = orig->pScriptRefs;
+        scriptVars = orig->scriptVars;
         
         // free old midi rules
         for (int i = 0 ; pMidiRules[i] ; i++) {
@@ -5628,6 +5981,7 @@ namespace {
      */
     bool Instrument::UsesAnyGigFormatExtension() const {
         if (!pRegions) return false;
+        if (!scriptVars.empty()) return true;
         RegionList::const_iterator iter = pRegions->begin();
         RegionList::const_iterator end  = pRegions->end();
         for (; iter != end; ++iter) {

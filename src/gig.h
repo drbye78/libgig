@@ -26,6 +26,7 @@
 
 #include "DLS.h"
 #include <vector>
+#include <array> // since C++11
 
 #ifndef __has_feature
 # define __has_feature(x) 0
@@ -62,6 +63,7 @@
 # define CHUNK_ID_SCRI  0x53637269 // own gig format extension
 # define CHUNK_ID_LSNM  0x4c534e4d // own gig format extension
 # define CHUNK_ID_SCSL  0x5343534c // own gig format extension
+# define CHUNK_ID_SCPV  0x53435056 // own gig format extension
 # define CHUNK_ID_LSDE  0x4c534445 // own gig format extension
 # define CHUNK_ID_3DDP  0x33646470
 #else  // little endian
@@ -83,6 +85,7 @@
 # define CHUNK_ID_SCRI  0x69726353 // own gig format extension
 # define CHUNK_ID_LSNM  0x4d4e534c // own gig format extension
 # define CHUNK_ID_SCSL  0x4c534353 // own gig format extension
+# define CHUNK_ID_SCPV  0x56504353 // own gig format extension
 # define CHUNK_ID_LSDE  0x4544534c // own gig format extension
 # define CHUNK_ID_3DDP  0x70646433
 #endif // WORDS_BIGENDIAN
@@ -1307,6 +1310,11 @@ namespace gig {
             uint      ScriptSlotCount() const;
             bool      IsScriptSlotBypassed(uint index);
             void      SetScriptSlotBypassed(uint index, bool bBypass);
+            bool      IsScriptPatchVariableSet(int slot, String variable);
+            std::map<String,String> GetScriptPatchVariables(int slot);
+            String    GetScriptPatchVariable(int slot, String variable);
+            void      SetScriptPatchVariable(int slot, String variable, String value);
+            void      UnsetScriptPatchVariable(int slot = -1, String variable = "");
         protected:
             Region*   RegionKeyTable[128]; ///< fast lookup for the corresponding Region of a MIDI key
 
@@ -1327,10 +1335,17 @@ namespace gig {
                 Script*  script;
                 bool     bypass;
             };
+            typedef std::array<uint8_t,16> _UUID;
+            typedef std::map<String,String> _PatchVars;
+            typedef std::map<int,_PatchVars> _VarsBySlot;
+            typedef std::map<_UUID,_VarsBySlot> _VarsByScript;
             MidiRule** pMidiRules;
             std::vector<_ScriptPooolEntry> scriptPoolFileOffsets;
             std::vector<_ScriptPooolRef>* pScriptRefs;
+            _VarsByScript scriptVars;
 
+            _VarsByScript stripScriptVars();
+            bool ReferencesScriptWithUuid(const _UUID& uuid);
             bool UsesAnyGigFormatExtension() const;
     };
 
