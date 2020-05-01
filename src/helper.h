@@ -156,14 +156,14 @@ inline void store32(uint8_t* pData, uint32_t data) {
  * @param data  - integer to be stored
  */
 inline void store64(uint8_t* pData, uint64_t data) {
-    pData[0] = data;
-    pData[1] = data >> 8;
-    pData[2] = data >> 16;
-    pData[3] = data >> 24;
-    pData[4] = data >> 32;
-    pData[5] = data >> 40;
-    pData[6] = data >> 48;
-    pData[7] = data >> 56;
+    pData[0] = (uint8_t)data;
+    pData[1] = (uint8_t)(data >> 8);
+    pData[2] = (uint8_t)(data >> 16);
+    pData[3] = (uint8_t)(data >> 24);
+    pData[4] = (uint8_t)(data >> 32);
+    pData[5] = (uint8_t)(data >> 40);
+    pData[6] = (uint8_t)(data >> 48);
+    pData[7] = (uint8_t)(data >> 56);
 }
 
 /**

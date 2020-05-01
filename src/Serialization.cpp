@@ -1450,7 +1450,7 @@ namespace Serialization {
         type.m_baseTypeName   = _popStringBlob(p, end);
         type.m_customTypeName = _popStringBlob(p, end);
         type.m_size           = _popIntBlob<int>(p, end);
-        type.m_isPointer      = _popIntBlob<bool>(p, end);
+        type.m_isPointer      = (bool)_popIntBlob<int>(p, end);
         return type;
     }
 
