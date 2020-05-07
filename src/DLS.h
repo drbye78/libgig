@@ -282,6 +282,7 @@ namespace DLS {
      */
     class Storage {
     public:
+        virtual ~Storage() {}
         /** @brief Apply object's changes to the respective RIF::Chunks.
          *
          * This abstract interface method is intended to be implemented by the
